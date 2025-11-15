@@ -37,7 +37,7 @@ public class AuthService {
     private JwtTokenProvider tokenProvider;
     
     @Transactional
-    public UserResponse register(RegisterRequest request) {
+    public RegisterResponse register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new RuntimeException("Username already exists");
         }
@@ -61,16 +61,30 @@ public class AuthService {
         profile.setUser(user);
         userProfileRepository.save(profile);
         
-        return mapToUserResponse(user);
+        // Generate JWT token for the new user
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                user.getUsername(), request.getPassword());
+        String token = tokenProvider.generateToken(authentication);
+        
+        return new RegisterResponse(true, "Registration successful", token, mapToUserResponse(user));
     }
     
     public LoginResponse login(LoginRequest request) {
         User user;
-        if (request.getUsername() != null) {
-            user = userRepository.findByUsername(request.getUsername())
+        
+        // Determine if the input is an email or username by checking for @ symbol
+        String identifier = request.getUsername() != null ? request.getUsername() : request.getEmail();
+        
+        if (identifier == null || identifier.isEmpty()) {
+            throw new RuntimeException("Invalid credentials");
+        }
+        
+        // If identifier contains @, treat it as email; otherwise as username
+        if (identifier.contains("@")) {
+            user = userRepository.findByEmail(identifier)
                     .orElseThrow(() -> new RuntimeException("Invalid credentials"));
         } else {
-            user = userRepository.findByEmail(request.getEmail())
+            user = userRepository.findByUsername(identifier)
                     .orElseThrow(() -> new RuntimeException("Invalid credentials"));
         }
         

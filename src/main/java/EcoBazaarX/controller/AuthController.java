@@ -14,13 +14,19 @@ public class AuthController {
     private AuthService authService;
     
     @PostMapping("/register")
-    public ResponseEntity<UserResponse> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         try {
-            UserResponse response = authService.register(request);
+            RegisterResponse response = authService.register(request);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse(e.getMessage() != null ? e.getMessage() : "Registration failed"));
         }
+    }
+    
+    @PostMapping("/signup")
+    public ResponseEntity<?> signup(@RequestBody RegisterRequest request) {
+        return register(request);
     }
     
     @PostMapping("/login")
