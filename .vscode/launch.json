@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-Application<EcoBazarX>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "EcoBazaarX.Application",
+            "projectName": "EcoBazarX",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
