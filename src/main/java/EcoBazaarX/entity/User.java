@@ -43,6 +43,10 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role = Role.USER;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "seller_status")
+    private SellerStatus sellerStatus = SellerStatus.NONE;
     
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -50,5 +54,12 @@ public class User {
     
     public enum Role {
         USER, SELLER, ADMIN
+    }
+
+    public enum SellerStatus {
+        NONE,
+        PENDING,
+        APPROVED,
+        REJECTED
     }
 }

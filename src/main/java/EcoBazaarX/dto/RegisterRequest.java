@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,4 +18,10 @@ public class RegisterRequest {
     private String lastName;
     private String phone;
     private User.Role role = User.Role.USER;
+    private String businessName;
+    private String businessType;
+    private String gstNumber;
+    private String website;
+    private String description;
+    private List<String> documents;
 }

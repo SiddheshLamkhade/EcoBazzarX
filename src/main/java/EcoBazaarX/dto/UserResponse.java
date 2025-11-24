@@ -17,5 +17,6 @@ public class UserResponse {
     private String lastName;
     private String phone;
     private String role;
+    private String sellerStatus;
     private LocalDateTime createdAt;
 }

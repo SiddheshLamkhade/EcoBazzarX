@@ -35,6 +35,9 @@ public class AuthService {
     
     @Autowired
     private JwtTokenProvider tokenProvider;
+
+    @Autowired
+    private SellerApplicationService sellerApplicationService;
     
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
@@ -53,9 +56,18 @@ public class AuthService {
         user.setLastName(request.getLastName());
         user.setPhone(request.getPhone());
         user.setRole(request.getRole());
+        if (request.getRole() == User.Role.SELLER) {
+            user.setSellerStatus(User.SellerStatus.PENDING);
+        } else {
+            user.setSellerStatus(User.SellerStatus.NONE);
+        }
         
         user = userRepository.save(user);
         
+        if (user.getRole() == User.Role.SELLER) {
+            sellerApplicationService.createPendingApplication(user, request);
+        }
+
         // Create user profile for leaderboard
         UserProfile profile = new UserProfile();
         profile.setUser(user);
@@ -115,6 +127,12 @@ public class AuthService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         user.setRole(role);
+        if (role == User.Role.SELLER && user.getSellerStatus() == User.SellerStatus.NONE) {
+            user.setSellerStatus(User.SellerStatus.APPROVED);
+        }
+        if (role != User.Role.SELLER) {
+            user.setSellerStatus(User.SellerStatus.NONE);
+        }
         userRepository.save(user);
         return "Role for user '" + username + "' updated to: " + role;
     }
@@ -151,14 +169,15 @@ public class AuthService {
     
     private UserResponse mapToUserResponse(User user) {
         return new UserResponse(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getFirstName(),
-                user.getLastName(),
-                user.getPhone(),
-                user.getRole().name(),
-                user.getCreatedAt()
+            user.getId(),
+            user.getUsername(),
+            user.getEmail(),
+            user.getFirstName(),
+            user.getLastName(),
+            user.getPhone(),
+            user.getRole().name(),
+            user.getSellerStatus() != null ? user.getSellerStatus().name() : null,
+            user.getCreatedAt()
         );
     }
 }

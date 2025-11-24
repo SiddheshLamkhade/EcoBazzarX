@@ -1,11 +1,14 @@
 package EcoBazaarX.controller;
 
+import EcoBazaarX.dto.ReviewSellerApplicationRequest;
+import EcoBazaarX.dto.SellerApplicationResponse;
 import EcoBazaarX.dto.UpdateUserRequest;
 import EcoBazaarX.dto.UserResponse;
 import EcoBazaarX.entity.Order;
 import EcoBazaarX.entity.User;
 import EcoBazaarX.service.AuthService;
 import EcoBazaarX.service.OrderService;
+import EcoBazaarX.service.SellerApplicationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/admin")
+@RequestMapping({"/admin", "/api/admin"})
 @CrossOrigin(origins = "*")
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
@@ -24,6 +27,9 @@ public class AdminController {
     
     @Autowired
     private OrderService orderService;
+
+    @Autowired
+    private SellerApplicationService sellerApplicationService;
     
     @GetMapping("/all-users")
     public ResponseEntity<List<UserResponse>> getAllUsers() {
@@ -82,5 +88,17 @@ public class AdminController {
     @GetMapping("/all-orders")
     public ResponseEntity<List<Order>> getAllOrders() {
         return ResponseEntity.ok(orderService.getAllOrders());
+    }
+
+    @GetMapping("/seller-applications")
+    public ResponseEntity<List<SellerApplicationResponse>> getSellerApplications() {
+        return ResponseEntity.ok(sellerApplicationService.getAllApplications());
+    }
+
+    @PutMapping("/seller-applications/{id}")
+    public ResponseEntity<SellerApplicationResponse> reviewSellerApplication(
+            @PathVariable Long id,
+            @RequestBody ReviewSellerApplicationRequest request) {
+        return ResponseEntity.ok(sellerApplicationService.reviewApplication(id, request));
     }
 }
