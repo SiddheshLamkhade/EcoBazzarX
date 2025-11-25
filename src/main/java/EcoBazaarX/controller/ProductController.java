@@ -20,7 +20,7 @@ public class ProductController {
         return ResponseEntity.ok(productService.getAllProducts());
     }
     
-    @GetMapping("/api/products")
+    @GetMapping({"/api/products", "/products"})
     public ResponseEntity<List<Product>> filterProducts(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String category,

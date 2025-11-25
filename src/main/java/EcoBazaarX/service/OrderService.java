@@ -1,12 +1,16 @@
 package EcoBazaarX.service;
 
+import EcoBazaarX.dto.SellerOrderItemResponse;
+import EcoBazaarX.dto.SellerOrderResponse;
 import EcoBazaarX.entity.*;
 import EcoBazaarX.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class OrderService {
@@ -25,6 +29,9 @@ public class OrderService {
     
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private OrderItemRepository orderItemRepository;
     
     @Transactional
     public Order checkout() {
@@ -82,6 +89,40 @@ public class OrderService {
     public List<Order> getAllOrders() {
         return orderRepository.findAll();
     }
+
+    public List<SellerOrderResponse> getSellerOrders() {
+        User seller = authService.getCurrentUser();
+        List<OrderItem> sellerItems = orderItemRepository.findItemsForSeller(seller.getId());
+        Map<Long, SellerOrderResponse> grouped = new LinkedHashMap<>();
+
+        for (OrderItem item : sellerItems) {
+            Order order = item.getOrder();
+            SellerOrderResponse response = grouped.computeIfAbsent(order.getId(), id -> SellerOrderResponse.builder()
+                    .orderId(order.getId())
+                    .status(order.getStatus().name())
+                    .orderDate(order.getCreatedAt())
+                    .customerName(buildCustomerName(order.getUser()))
+                    .customerUsername(order.getUser().getUsername())
+                    .totalAmount(0.0)
+                    .build());
+
+            double lineTotal = (item.getPriceAtPurchase() != null ? item.getPriceAtPurchase() : 0.0)
+                    * (item.getQuantity() != null ? item.getQuantity() : 0);
+
+            SellerOrderItemResponse itemResponse = SellerOrderItemResponse.builder()
+                    .productId(item.getProductId())
+                    .productName(item.getProductName())
+                    .quantity(item.getQuantity())
+                    .priceAtPurchase(item.getPriceAtPurchase())
+                    .carbonAtPurchase(item.getCarbonAtPurchase())
+                    .build();
+
+            response.addItem(itemResponse);
+            response.setTotalAmount(response.getTotalAmount() + lineTotal);
+        }
+
+        return List.copyOf(grouped.values());
+    }
     
     @Transactional
     public Order updateOrderStatus(Long orderId, Order.OrderStatus status) {
@@ -119,5 +160,15 @@ public class OrderService {
         }
         
         userProfileRepository.save(profile);
+    }
+
+    private String buildCustomerName(User customer) {
+        if (customer == null) {
+            return "";
+        }
+        String first = customer.getFirstName() != null ? customer.getFirstName() : "";
+        String last = customer.getLastName() != null ? customer.getLastName() : "";
+        String full = (first + " " + last).trim();
+        return full.isEmpty() ? customer.getUsername() : full;
     }
 }

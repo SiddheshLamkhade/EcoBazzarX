@@ -17,7 +17,8 @@ http://localhost:8080
 7. [Checkout Endpoints](#checkout-endpoints)
 8. [Carbon Footprint Endpoints](#carbon-footprint-endpoints)
 9. [Leaderboard Endpoints](#leaderboard-endpoints)
-10. [Database Tables & Sample Data](#database-tables--sample-data)
+10. [Recommendation Endpoints](#recommendation-endpoints)
+11. [Database Tables & Sample Data](#database-tables--sample-data)
 
 ---
 
@@ -30,7 +31,7 @@ http://localhost:8080
 ```json
 {
   "username": "john_doe",
-  "password": "password123",
+  "password": "$idL@mkh@de.2406new",
   "email": "john.doe@example.com",
   "firstName": "John",
   "lastName": "Doe",
@@ -196,6 +197,32 @@ http://localhost:8080
 |----|----------|-------|------------|-----------|------|
 | 2 | eco_seller | seller@ecobazaar.com | Eco | Seller | SELLER |
 | 5 | green_seller | green@ecobazaar.com | Green | Seller | SELLER |
+
+---
+
+### 3b. Get Logged-in User Profile
+**GET** `/api/user/profile`
+
+**Headers:** `Authorization: Bearer <token>`
+
+#### Response (200 OK)
+```json
+{
+  "id": 1,
+  "username": "john_doe",
+  "email": "john.doe@example.com",
+  "firstName": "John",
+  "lastName": "Doe",
+  "phone": "1234567890",
+  "role": "USER",
+  "carbonPoints": 240,
+  "carbonSaved": 18.5,
+  "badge": "Gold",
+  "createdAt": "2025-11-12T10:30:00"
+}
+```
+
+This endpoint always returns the authenticated user's profile and automatically creates a `USER_PROFILES` row if one does not exist yet (so carbon metrics are never `null`).
 
 ---
 
@@ -418,6 +445,75 @@ DELETE /admin/delete-user/5
 | 3 | 2 | 2 | Bamboo Water Bottle | 2 | 24.99 | 1.8 |
 | 4 | 3 | 3 | Recycled Plastic Shoes | 1 | 79.99 | 8.5 |
 | 5 | 4 | 1 | Organic Cotton T-Shirt | 5 | 29.99 | 2.5 |
+
+---
+
+### 11a. Get Seller Applications
+**GET** `/admin/seller-applications`
+
+**Headers:** `Authorization: Bearer <ADMIN token>`
+
+#### Response (200 OK)
+```json
+[
+  {
+    "id": 41,
+    "userId": 12,
+    "userName": "Alice Johnson",
+    "email": "alice@ecofarm.com",
+    "businessName": "Alice Organic Farm",
+    "businessType": "Agricultural Producer",
+    "gstNumber": "GST123456789",
+    "documents": [
+      "license.pdf",
+      "certificate.pdf"
+    ],
+    "status": "PENDING",
+    "appliedAt": "2025-11-20T09:45:00",
+    "reviewedAt": null,
+    "reviewNotes": null
+  }
+]
+```
+
+Each entry maps to a row in the `seller_applications` table that is automatically created when a user signs up with the `SELLER` role.
+
+---
+
+### 11b. Review Seller Application
+**PUT** `/admin/seller-applications/{id}`
+
+**Path Variable:** `id` – Application ID returned by the list endpoint.
+
+**Headers:** `Authorization: Bearer <ADMIN token>`
+
+**Request Body**
+```json
+{
+  "decision": "APPROVED",
+  "notes": "GST verified. Welcome aboard!"
+}
+```
+
+`decision` must be either `APPROVED` or `REJECTED`. When approved/rejected, the corresponding user's `sellerStatus` is updated and the application receives `reviewNotes` + `reviewedAt` timestamp.
+
+#### Response (200 OK)
+```json
+{
+  "id": 41,
+  "userId": 12,
+  "userName": "Alice Johnson",
+  "email": "alice@ecofarm.com",
+  "businessName": "Alice Organic Farm",
+  "businessType": "Agricultural Producer",
+  "gstNumber": "GST123456789",
+  "documents": ["license.pdf", "certificate.pdf"],
+  "status": "APPROVED",
+  "appliedAt": "2025-11-20T09:45:00",
+  "reviewedAt": "2025-11-21T10:15:00",
+  "reviewNotes": "GST verified. Welcome aboard!"
+}
+```
 
 ---
 
@@ -1184,6 +1280,83 @@ PUT /api/checkout/status/1?status=SHIPPED
 |----|---------|--------|
 | 1 | 1 | PENDING |
 | 3 | 1 | SHIPPED |
+
+---
+
+## Recommendation Endpoints
+
+These endpoints power the dashboard recommendation widgets. They aggregate marketplace data, user sustainability stats, and OpenAI-generated messaging to deliver actionable suggestions. Responses reuse the `RecommendationResponse` DTO exposed by the backend.
+
+### 33. Get Personalized Recommendations
+**GET** `/api/recommendations/personalized/{userId}`
+
+**Headers:** `Authorization: Bearer <token>` (recommended so the user profile can be resolved)
+
+#### Response (200 OK)
+```json
+[
+  {
+    "productId": 7,
+    "name": "Bamboo Toothbrush Set",
+    "description": "Biodegradable bamboo toothbrushes, pack of 4",
+    "category": "Personal Care",
+    "price": 15.99,
+    "carbonFootprint": 0.5,
+    "imageUrl": "https://images.unsplash.com/photo-1607613009820-a29f7bb81c04?w=400",
+    "score": 132.4,
+    "reason": "Keeps footprint under 1 kg CO₂e and matches your recent zero-waste purchases."
+  }
+]
+```
+
+#### How it works
+- Fetches all catalog products, scores them by low carbon footprint, recency, and the requesting user's carbon points.
+- Calls OpenAI Chat Completions (model `gpt-3.5-turbo`) with the product shortlist to generate concise human-readable reasons. If OpenAI is unavailable the service falls back to deterministic reasons.
+- Relies on `USERS`, `USER_PROFILES`, and `PRODUCTS` tables.
+
+### 34. Get Similar Products
+**GET** `/api/recommendations/similar/{productId}`
+
+Returns products in the same category (fallback: overall low-carbon catalog) ordered by similarity score.
+
+#### Response (200 OK)
+```json
+[
+  {
+    "productId": 9,
+    "name": "Hemp Backpack",
+    "category": "Bags",
+    "price": 69.99,
+    "carbonFootprint": 4.2,
+    "imageUrl": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400",
+    "score": 88.6,
+    "reason": "Shares the Bags category with Eco Travel Set while keeping price and footprint tight."
+  }
+]
+```
+
+### 35. Get Low-Carbon Alternatives
+**GET** `/api/recommendations/low-carbon/{productId}`
+
+Highlights products with a strictly lower carbon footprint than the reference item. When the product lacks footprint data, the endpoint returns the marketplace's lowest-carbon picks.
+
+#### Response (200 OK)
+```json
+[
+  {
+    "productId": 10,
+    "name": "Second-Hand Laptop",
+    "carbonFootprint": 15.0,
+    "score": 95.0,
+    "reason": "Cuts roughly 6.5 kg CO₂e compared with Solar Laptop." 
+  }
+]
+```
+
+#### Notes
+- All recommendation endpoints proxy through Vite using `/api/recommendations/...` so frontend calls require no host changes.
+- Each response caches only calculated data; no state is persisted besides optional AI reasoning logs.
+- Failures fall back to deterministic heuristics to keep the dashboard responsive.
 
 ---
 

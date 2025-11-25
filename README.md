@@ -179,6 +179,10 @@ src/main/java/EcoBazaarX/
 └── Application.java    # Main application class
 ```
 
+### AI Assistant (model/)
+
+The `model/` directory hosts the Flask-based Eco Assistant (chatbot + recommender). See `model/README.md` for setup instructions. Expose the service on `http://localhost:5000`, and point the React app to it via `VITE_AI_SERVICE_URL` so the in-app assistant can answer user questions.
+
 ## Database Schema
 
 The application automatically creates the following tables:
